@@ -13,7 +13,6 @@ import searchengine.config.SitesList ;
 import java.util.regex.Pattern;
 import java.net.URI;
 import java.net.URISyntaxException;
-
 import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,6 +86,14 @@ public class SearchServiceImpl implements SearchService {
             URI pageUri = new URI(pageUrl);
             String pageHost = pageUri.getHost();
 
+
+            if (pageHost == null) {
+
+                pageUrl = resolveFullUrl("https://default-site.com", pageUrl);
+                pageUri = new URI(pageUrl);
+                pageHost = pageUri.getHost();
+            }
+
             if (pageHost == null) return false;
 
             for (String allowed : allowedSites) {
@@ -97,7 +104,6 @@ public class SearchServiceImpl implements SearchService {
                 }
             }
         } catch (URISyntaxException e) {
-            // Можно логировать
             System.err.println("Ошибка разбора URL: " + pageUrl);
         }
         return false;
@@ -170,6 +176,17 @@ public class SearchServiceImpl implements SearchService {
             return title;
         } else {
             return path;
+        }
+    }
+
+    private String resolveFullUrl(String baseUrl, String relativeUrl) {
+        try {
+            URI baseUri = new URI(baseUrl);
+            URI resolvedUri = new URI(baseUri.getScheme(), baseUri.getAuthority(), relativeUrl, null, null);
+            return resolvedUri.toString();
+        } catch (URISyntaxException e) {
+            System.err.println("Ошибка при разборе URL: " + relativeUrl);
+            return relativeUrl;
         }
     }
 }

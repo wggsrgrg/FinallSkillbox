@@ -99,6 +99,12 @@ public class PageCrawler extends RecursiveAction {
         int statusCode = response.statusCode();
         String path = new URL(url).getPath();
 
+        if (statusCode >= 400) {
+            logger.warn("Ошибка {} при доступе к URL: {}. Страница не будет индексироваться.", statusCode, url);
+            saveErrorPage(statusCode, "HTTP error: " + statusCode);
+            return;
+        }
+
         if (pageRepository.existsByPathAndSiteId(path, site.getId())) {
             logger.info("Страница {} уже существует. Пропускаем сохранение.", url);
             return;
@@ -108,6 +114,7 @@ public class PageCrawler extends RecursiveAction {
         page.setSite(site);
         page.setPath(path);
         page.setCode(statusCode);
+
 
         if (contentType != null && contentType.startsWith("image/")) {
             page.setContent("Image content: " + contentType);
@@ -128,6 +135,15 @@ public class PageCrawler extends RecursiveAction {
             page.setContent("Unhandled content type: " + contentType);
             logger.info("Контент с неизвестным типом добавлен: {}", url);
         }
+    }
+
+    private void saveErrorPage(int code, String message) {
+        Page page = new Page();
+        page.setSite(site);
+        page.setPath(url);
+        page.setCode(code);
+        page.setContent(message);
+        pageRepository.save(page);
     }
 
     public Map<String, Integer> lemmatizeText(String text) {
