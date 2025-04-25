@@ -99,6 +99,7 @@ public class PageCrawler extends RecursiveAction {
         int statusCode = response.statusCode();
         String path = new URL(url).getPath();
 
+        // Обработка ошибки для битых ссылок (404, 500 и т.д.)
         if (statusCode >= 400) {
             logger.warn("Ошибка {} при доступе к URL: {}. Страница не будет индексироваться.", statusCode, url);
             saveErrorPage(statusCode, "HTTP error: " + statusCode);
@@ -114,7 +115,6 @@ public class PageCrawler extends RecursiveAction {
         page.setSite(site);
         page.setPath(path);
         page.setCode(statusCode);
-
 
         if (contentType != null && contentType.startsWith("image/")) {
             page.setContent("Image content: " + contentType);

@@ -17,7 +17,6 @@ import searchengine.repository.LemmaRepository;
 import searchengine.repository.SiteRepository;
 import searchengine.repository.IndexRepository;
 import java.io.IOException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.net.URL;
@@ -42,7 +41,6 @@ public class PageIndexingService {
 
     private PageCrawler pageCrawler;
     private final Set<String> visitedUrls = ConcurrentHashMap.newKeySet();
-    private final ForkJoinPool forkJoinPool = new ForkJoinPool();
 
     public void indexPage(String url) {
         Optional<ConfigSite> optionalConfigSite = sitesList.getSites().stream()
