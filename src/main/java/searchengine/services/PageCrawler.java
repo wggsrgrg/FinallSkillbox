@@ -23,9 +23,11 @@ import java.util.List;
 
 public class PageCrawler extends RecursiveAction {
     private static final Logger logger = LoggerFactory.getLogger(PageCrawler.class);
+    private static final Set<String> blockedExtensions = Set.of(".pdf", ".doc", ".docx", ".ppt", ".pptx", ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".svg");
+    private static final List<String> blockedPathFragments = List.of("/staff/", "/admin/", "/login/", "leading-scientists", "about-people-of-science");
+
     private final Site site;
     private final List<String> allowedSiteUrls;
-
     private final String url;
     private final Set<String> visitedUrls;
     private final PageRepository pageRepository;
@@ -66,12 +68,22 @@ public class PageCrawler extends RecursiveAction {
         try {
             String path = new URL(url).getPath();
 
+            if (blockedExtensions.stream().anyMatch(url::endsWith)) {
+                logger.info("Пропускаем ссылку на файл запрещённого типа: {}", url);
+                return;
+            }
+
+            if (blockedPathFragments.stream().anyMatch(url::contains)) {
+                logger.info("Пропускаем ссылку на запрещённый раздел: {}", url);
+                return;
+            }
+
             if (pageRepository.existsByPathAndSiteId(path, site.getId())) {
                 logger.info("Пропускаем ранее проиндексированную страницу: {}", url);
                 return;
             }
 
-            long delay = 6 + new Random().nextInt(66);
+            long delay = 1 + new Random().nextInt(2);
             logger.debug("Задержка перед запросом: {} ms для URL: {}", delay, url);
             Thread.sleep(delay);
 
@@ -99,7 +111,6 @@ public class PageCrawler extends RecursiveAction {
         int statusCode = response.statusCode();
         String path = new URL(url).getPath();
 
-        // Обработка ошибки для битых ссылок (404, 500 и т.д.)
         if (statusCode >= 400) {
             logger.warn("Ошибка {} при доступе к URL: {}. Страница не будет индексироваться.", statusCode, url);
             saveErrorPage(statusCode, "HTTP error: " + statusCode);
@@ -117,9 +128,11 @@ public class PageCrawler extends RecursiveAction {
         page.setCode(statusCode);
 
         if (contentType != null && contentType.startsWith("image/")) {
-            page.setContent("Image content: " + contentType);
-            logger.info("Изображение добавлено: {}", url);
-        } else if (contentType != null && contentType.contains("text/html")) {
+            logger.info("Пропускаем изображение: {}", url);
+            return;
+        }
+
+      else if (contentType != null && contentType.contains("text/html")) {
             Document document = response.parse();
             String text = extractText(document);
             Map<String, Integer> lemmaFrequencies = lemmatizeText(text);
@@ -230,6 +243,15 @@ public class PageCrawler extends RecursiveAction {
             if (!checkAndLogStopCondition("При обработке ссылок")) return;
 
             String childUrl = link.absUrl("href");
+
+            if (blockedExtensions.stream().anyMatch(childUrl::endsWith)) {
+                logger.info("Пропускаем ссылку на файл запрещённого типа: {}", childUrl);
+                continue;
+            }
+            if (blockedPathFragments.stream().anyMatch(childUrl::contains)) {
+                logger.info("Пропускаем ссылку на запрещённый раздел: {}", childUrl);
+                continue;
+            }
 
             if (allowedSiteUrls.stream().noneMatch(childUrl::startsWith)) {
                 logger.debug("Ссылка {} вне списка разрешённых. Пропускаем.", childUrl);
